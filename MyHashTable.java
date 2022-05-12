@@ -1,128 +1,73 @@
 package com.company;
 
-import java.util.ArrayList;
 import java.util.Objects;
 
-public class MyHashTable <K, V>{
-    private class HashNode<K, V>{
+public class MyHashTable<K, V> {
+    private static class HashNode<K, V>{
+        private int hashCode = 0;
         private K key;
-        private V val;
+        private V value;
         private HashNode<K, V> next;
 
-        final int hashCode;
-
-        public HashNode(){
-            hashCode = 0;
-            next = null;
-        }
-        public HashNode(K key, V val, int hashCode){
+        public HashNode(K key, V value,int hashcode){
             this.key = key;
-            this.val = val;
+            this.value = value;
             this.hashCode = hashCode;
         }
 
         @Override
         public String toString() {
-            return "{" + key + " " + val + "}";
+            return "{" + key + " " + value + "}";
         }
     }
 
-    private ArrayList<HashNode<K,V>> chainArray;
-    private int M = 11;
+    private HashNode<K, V>[] chainArray;
+    private int M = 8;
     private int size;
 
     public MyHashTable() {
-        chainArray = new ArrayList<>();
-        size = 0;
-        for (int i = 0; i < M; i++){
-            chainArray.add(null);
-        }
+        this(8);
     }
 
-    public MyHashTable(int M) {
-        chainArray = new ArrayList<>();
+    public MyHashTable(int M){
         this.M = M;
-        size = 0;
-        for (int i = 0; i < M; i++){
-            chainArray.add(null);
-        }
+        this.chainArray = new HashNode[M];
+        this.size = 0;
     }
 
     private int hash(K key){
         return Objects.hashCode(key);
     }
 
-    private int getIndex(K key){
+    public void put(K key, V value){
+        int index = hash(key);
         int hash = hash(key);
-        int index = hash % M;
-        if (index < 0) index *= -1;
-        return index;
-    }
-
-    public void put(K key, V val){
-        int index = getIndex(key);
-        int hash = hash(key);
-
-//        System.out.println("Hash = " + hash);
-//        System.out.println("Index = " + index);
-
-        HashNode<K, V> head = chainArray.get(index);
-
-        while(head != null){
-            if (head.key.equals(key) && head.hashCode == hash){
-                head.val = val;
+        HashNode<K, V> head = chainArray[index];
+        while(head != null) {
+            if(head.key.equals(key)){
+                head.value = value;
                 return;
             }
             head = head.next;
         }
         size++;
-        head = chainArray.get(index);
-        HashNode<K, V> newNode = new HashNode<>(key, val, hash);
-        newNode.next = head;
-        chainArray.set(index, newNode);
-
-        //CHECK LOAD FACTOR
-        if ( (double) (size / M) > 0.6){
-            System.out.println("LOAD FACTOR " + key + " " + val);
-            M *= 2;
-            ArrayList<HashNode<K, V>> oldList = chainArray;
-            chainArray = new ArrayList<>();
-            size = 0;
-            for (int i = 0; i < M; i ++){
-                chainArray.add(null);
-            }
-            for (int i = 0; i < oldList.size(); i++){
-                HashNode<K, V> start = oldList.get(i);
-                while(start != null){
-                    put(start.key, start.val);
-                    start = start.next;
-                }
-            }
-        }
-
+        head = chainArray[index];
+        HashNode<K, V> node = new HashNode<K, V>(key, value,hash);
+        node.next = head;
+        chainArray[index] = node;
     }
 
-    public void print(){
-        for (int i = 0; i < M; i ++){
-            HashNode<K, V> head = chainArray.get(i);
-            if (head != null){
-                while(head != null){
-                    System.out.print("{" + head.key + "," + head.val + "}  ");
-                    head = head.next;
-                }
-                System.out.println();
-            }
-        }
+    public int size(){
+        return size;
     }
 
     public V get(K key){
-        int index = getIndex(key);
+        int index = hash(key);
+        HashNode<K, V> head = chainArray[index];
         int hash = hash(key);
-        HashNode<K, V> head = chainArray.get(index);
-
         while(head != null){
-            if (head.key.equals(key) && head.hashCode == hash){
-                return head.val;
+            if(head.key.equals(key) && head.hashCode == hash){
+                return head.value;
             }
             head = head.next;
         }
@@ -130,45 +75,49 @@ public class MyHashTable <K, V>{
     }
 
     public V remove(K key){
-        int index = getIndex(key);
+        int index = hash(key);
+        HashNode<K, V> head = chainArray[index];
+        HashNode<K, V> previous = null;
         int hash = hash(key);
-        HashNode<K, V> head = chainArray.get(index);
-        HashNode<K, V> prev = null;
         while(head != null){
-            if (head.key.equals(key) && hash == head.hashCode) break;
-            prev = head;
+            if(head.key.equals(key) && hash==head.hashCode){
+                size--;
+                if(previous != null){
+                    previous.next = head.next;
+                }
+                else{
+                    chainArray[index] = head.next;
+                }
+                return null;
+            }
+            previous = head;
             head = head.next;
         }
-        if (head == null) return null;
-
-        size--;
-
-        if(prev != null) prev.next = head.next;
-        else chainArray.set(index, head.next);
-        return head.val;
+        return null;
     }
-
     public boolean contains(V value){
-        for (int i = 0; i < M; i ++){
-            if (chainArray.get(i) != null){
-                HashNode<K, V> head = chainArray.get(i);
-                while(head != null){
-                    if(head.val.equals(value)){
-                        return true;
-                    }
-                    head = head.next;
+        for (HashNode<K, V> kvHashNode : chainArray) {
+            HashNode<K, V> head = kvHashNode;
+            while (head != null) {
+                if (head.value.equals(value)) {
+                    return true;
                 }
+                head = head.next;
             }
         }
         return false;
     }
 
-    public K getKey(V val){
+    public K getKey(V value){
+        for (HashNode<K, V> kvHashNode : chainArray) {
+            HashNode<K, V> head = kvHashNode;
+            while (head != null) {
+                if (head.value.equals(value)) {
+                    return head.key;
+                }
+                head = head.next;
+            }
+        }
         return null;
     }
-
-    public int size(){
-        return size;
-    }
-
 }
